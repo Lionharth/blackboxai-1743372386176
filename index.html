@@ -43,6 +43,49 @@
               </select>
             </div>
           </div>
+          <div class="mb-4">
+            <label class="inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="advancedMode" class="sr-only peer">
+              <div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              <span class="ml-3 text-sm font-medium text-gray-700">Advanced Mode</span>
+            </label>
+            <div id="advancedOptions" class="hidden mt-4 space-y-4">
+              <div>
+                <label class="block font-medium mb-1 text-gray-700">Time Period Weights:</label>
+                <div class="grid grid-cols-4 gap-2">
+                  <div>
+                    <label class="block text-xs text-gray-500">All Time</label>
+                    <input type="number" value="1" min="0" max="10" class="w-full border rounded p-2">
+                  </div>
+                  <div>
+                    <label class="block text-xs text-gray-500">Last Year</label>
+                    <input type="number" value="2" min="0" max="10" class="w-full border rounded p-2">
+                  </div>
+                  <div>
+                    <label class="block text-xs text-gray-500">Last Month</label>
+                    <input type="number" value="3" min="0" max="10" class="w-full border rounded p-2">
+                  </div>
+                  <div>
+                    <label class="block text-xs text-gray-500">Last Week</label>
+                    <input type="number" value="4" min="0" max="10" class="w-full border rounded p-2">
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label class="block font-medium mb-1 text-gray-700">Other Options:</label>
+                <div class="space-y-2">
+                  <label class="inline-flex items-center">
+                    <input type="checkbox" checked class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-offset-0 focus:ring-blue-200 focus:ring-opacity-50">
+                    <span class="ml-2">Prioritize newer tracks</span>
+                  </label>
+                  <label class="inline-flex items-center">
+                    <input type="checkbox" checked class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-offset-0 focus:ring-blue-200 focus:ring-opacity-50">
+                    <span class="ml-2">Include deep cuts</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
           <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center">
             <i class="fas fa-blender mr-2"></i> Generate Blend
           </button>
