@@ -12,7 +12,8 @@ const loadingIndicator = document.getElementById('loadingIndicator');
 // Fetch top tracks for a user
 async function getTopTracks(username) {
   try {
-    const url = `${BASE_URL}?method=user.gettoptracks&user=${username}&period=overall&limit=50&api_key=${API_KEY}&format=json`;
+    const trackLimit = parseInt(document.getElementById('trackLimit').value) || 100;
+    const url = `${BASE_URL}?method=user.gettoptracks&user=${username}&period=overall&limit=${trackLimit}&api_key=${API_KEY}&format=json`;
     console.log('Fetching top tracks from:', url);
     
     const response = await fetch(url);
@@ -93,6 +94,8 @@ async function generatePlaylist(user1, user2) {
     showLoading(true);
     clearStatus();
 
+    const playlistLength = parseInt(document.getElementById('playlistLength').value) || 50;
+    
     const [user1Top, user2Top, user1Suggested, user2Suggested] = await Promise.all([
       getTopTracks(user1),
       getTopTracks(user2),
@@ -110,7 +113,7 @@ async function generatePlaylist(user1, user2) {
 
     // Create a balanced blend (inspired by Spotify)
     const blendedTracks = [];
-    const maxTracks = 50; // Increased playlist length
+    const maxTracks = playlistLength;
     
     // 1. Add common tracks first (40% of playlist)
     const commonCount = Math.min(commonTracks.length, Math.floor(maxTracks * 0.4));
