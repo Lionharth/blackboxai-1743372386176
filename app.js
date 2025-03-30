@@ -96,19 +96,41 @@ async function generatePlaylist(user1, user2) {
 
     const playlistLength = parseInt(document.getElementById('playlistLength').value) || 50;
     
-    const [user1Top, user2Top, user1Suggested, user2Suggested] = await Promise.all([
-      getTopTracks(user1),
-      getTopTracks(user2),
-      getSuggestedTracks(user1),
-      getSuggestedTracks(user2)
-    ]);
+    let user1Top, user2Top;
+    
+    if (document.getElementById('advancedMode').checked) {
+      [user1Top, user2Top, user1Suggested, user2Suggested] = await Promise.all([
+        getWeightedTracks(user1),
+        getWeightedTracks(user2),
+        getSuggestedTracks(user1),
+        getSuggestedTracks(user2)
+      ]);
+    } else {
+      [user1Top, user2Top, user1Suggested, user2Suggested] = await Promise.all([
+        getTopTracks(user1),
+        getTopTracks(user2),
+        getSuggestedTracks(user1),
+        getSuggestedTracks(user2)
+      ]);
+    }
 
     // Process all track data with weights
-    const user1Tracks = user1Top.toptracks.track.map(t => processTrackData(t));
-    const user2Tracks = user2Top.toptracks.track.map(t => processTrackData(t));
+    const user1Tracks = document.getElementById('advancedMode').checked 
+      ? user1Top 
+      : user1Top.toptracks.track.map(t => processTrackData(t));
+    const user2Tracks = document.getElementById('advancedMode').checked 
+      ? user2Top 
+      : user2Top.toptracks.track.map(t => processTrackData(t));
     
     // Find common tracks and mark them
-    const commonTracks = findCommonTracks(user1Top.toptracks.track, user2Top.toptracks.track)
+    const user1RawTracks = document.getElementById('advancedMode').checked 
+      ? user1Top 
+      : user1Top.toptracks.track;
+    const user2RawTracks = document.getElementById('advancedMode').checked 
+      ? user2Top 
+      : user2Top.toptracks.track;
+      
+    const commonTracks = findCommonTracks(user1RawTracks, user2RawTracks)
       .map(t => processTrackData(t, true));
 
     // Create a balanced blend (inspired by Spotify)
@@ -148,9 +170,18 @@ async function generatePlaylist(user1, user2) {
       }
     });
 
-    // Sort by relevance (common tracks first, then by combined playcount)
+    // Sort by relevance (common tracks first, then by weighted score)
     uniqueTracks.sort((a, b) => {
       if (a.common !== b.common) return b.common - a.common;
+      
+      // Calculate weighted scores if in advanced mode
+      if (document.getElementById('advancedMode').checked) {
+        const aScore = a.playcount * (a.weight || 1);
+        const bScore = b.playcount * (b.weight || 1);
+        return bScore - aScore;
+      }
+      
+      // Default sort by playcount in basic mode
       return b.playcount - a.playcount;
     });
 
@@ -242,6 +273,45 @@ function showStatus(message, type = 'error') {
 
 function clearStatus() {
   statusMessage.classList.add('hidden');
+}
+
+// Toggle advanced options
+document.getElementById('advancedMode').addEventListener('change', function() {
+  document.getElementById('advancedOptions').classList.toggle('hidden', !this.checked);
+});
+
+// Advanced mode track processing
+async function getWeightedTracks(username) {
+  const weightInputs = document.querySelectorAll('#advancedOptions input[type="number"]');
+  const weights = {
+    overall: parseInt(weightInputs[0]?.value) || 1,
+    year: parseInt(weightInputs[1]?.value) || 2,
+    month: parseInt(weightInputs[2]?.value) || 3,
+    week: parseInt(weightInputs[3]?.value) || 4
+  };
+
+  const [overall, year, month, week] = await Promise.all([
+    getTopTracksForPeriod(username, 'overall'),
+    getTopTracksForPeriod(username, '12month'),
+    getTopTracksForPeriod(username, '1month'),
+    getTopTracksForPeriod(username, '7day')
+  ]);
+
+  // Combine and weight tracks
+  const weightedTracks = [];
+  overall.toptracks.track.forEach(t => weightedTracks.push({...processTrackData(t), weight: weights.overall}));
+  year.toptracks.track.forEach(t => weightedTracks.push({...processTrackData(t), weight: weights.year}));
+  month.toptracks.track.forEach(t => weightedTracks.push({...processTrackData(t), weight: weights.month}));
+  week.toptracks.track.forEach(t => weightedTracks.push({...processTrackData(t), weight: weights.week}));
+
+  return weightedTracks;
+}
+
+async function getTopTracksForPeriod(username, period) {
+  const trackLimit = parseInt(document.getElementById('trackLimit').value) || 100;
+  const url = `${BASE_URL}?method=user.gettoptracks&user=${username}&period=${period}&limit=${trackLimit}&api_key=${API_KEY}&format=json`;
+  const response = await fetch(url);
+  return response.json();
 }
 
 // Event Listeners
