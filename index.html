@@ -22,6 +22,27 @@
             <label class="block font-medium mb-1 text-gray-700">User 2:</label>
             <input type="text" id="user2" class="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter Last.fm username" required>
           </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block font-medium mb-1 text-gray-700">Playlist Length:</label>
+              <select id="playlistLength" class="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <option value="30">30 tracks</option>
+                <option value="50" selected>50 tracks</option>
+                <option value="75">75 tracks</option>
+                <option value="100">100 tracks</option>
+              </select>
+            </div>
+            <div>
+              <label class="block font-medium mb-1 text-gray-700">Tracks to Check:</label>
+              <select id="trackLimit" class="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <option value="50">50 (Quick)</option>
+                <option value="100" selected>100 (Normal)</option>
+                <option value="200">200 (Thorough)</option>
+                <option value="500">500 (Deep Dive)</option>
+                <option value="1000">1000 (Crazy)</option>
+              </select>
+            </div>
+          </div>
           <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center">
             <i class="fas fa-blender mr-2"></i> Generate Blend
           </button>
