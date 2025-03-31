@@ -26,10 +26,13 @@
             <div>
               <label class="block font-medium mb-1 text-gray-700">Playlist Length:</label>
               <select id="playlistLength" class="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <option value="0">As many as possible</option>
                 <option value="30">30 tracks</option>
                 <option value="50" selected>50 tracks</option>
                 <option value="75">75 tracks</option>
                 <option value="100">100 tracks</option>
+                <option value="150">150 tracks</option>
+                <option value="200">200 tracks</option>
               </select>
             </div>
             <div>
@@ -97,7 +100,18 @@
           <i class="fas fa-list-music mr-2"></i>Blended Playlist
         </h2>
         <div id="playlist" class="mb-6 overflow-y-auto max-h-96 pr-2">
-          <!-- Tracks will be dynamically added here -->
+          <div class="track-item p-3 mb-2 rounded-lg fade-in ${track.common ? 'common-track' : 'bg-gray-50'}">
+            <div class="flex items-center">
+              ${track.common ? '<span class="text-yellow-500 mr-2"><i class="fas fa-star"></i></span>' : ''}
+              <div class="flex-grow">
+                <span class="font-semibold text-gray-800">${track.name}</span>
+                <span class="text-gray-600"> - ${track.artist}</span>
+                ${track.user1 ? '<span class="text-sm text-blue-500 ml-2">User1</span>' : ''}
+                ${track.user2 ? '<span class="text-sm text-green-500 ml-2">User2</span>' : ''}
+              </div>
+              <span class="text-sm text-gray-500">${track.playcount} plays</span>
+            </div>
+          </div>
         </div>
         <button id="exportBtn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200 hidden flex items-center justify-center">
           <i class="fas fa-share-square mr-2"></i> Export to Last.fm
