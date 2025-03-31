@@ -75,10 +75,17 @@ function findCommonTracks(user1Tracks, user2Tracks) {
 }
 
 // Process track data into consistent format
-function processTrackData(track, isCommon = false) {
+function processTrackData(track, isCommon = false, user1 = false, user2 = false) {
   const artistName = typeof track.artist === 'object' ? track.artist?.name : track.artist;
+  const playcount = parseInt(track.playcount) || 0;
+  
+  // Skip tracks with less than 20 plays
+  if (playcount < 20) return null;
+
   return {
     name: track.name || 'Unknown Track',
+    user1,
+    user2,
     artist: artistName || 'Unknown Artist',
     playcount: parseInt(track.playcount) || 0,
     common: isCommon,
@@ -116,10 +123,10 @@ async function generatePlaylist(user1, user2) {
     // Process all track data with weights
     const user1Tracks = document.getElementById('advancedMode').checked 
       ? user1Top 
-      : user1Top.toptracks.track.map(t => processTrackData(t));
+      : user1Top.toptracks.track.map(t => processTrackData(t, false, true, false)).filter(t => t !== null);
     const user2Tracks = document.getElementById('advancedMode').checked 
       ? user2Top 
-      : user2Top.toptracks.track.map(t => processTrackData(t));
+      : user2Top.toptracks.track.map(t => processTrackData(t, false, false, true)).filter(t => t !== null);
     
     // Find common tracks and mark them
     const user1RawTracks = document.getElementById('advancedMode').checked 
@@ -130,7 +137,25 @@ async function generatePlaylist(user1, user2) {
       : user2Top.toptracks.track;
       
     const commonTracks = findCommonTracks(user1RawTracks, user2RawTracks)
-      .map(t => processTrackData(t, true));
+      .map(t => {
+        const track = processTrackData(t, true, true, true);
+        if (track) {
+          // Calculate combined plays for common tracks
+          const user1Track = user1RawTracks.find(ut => 
+            ut.name.toLowerCase() === t.name.toLowerCase() && 
+            (typeof ut.artist === 'object' ? ut.artist?.name : ut.artist).toLowerCase() === 
+            (typeof t.artist === 'object' ? t.artist?.name : t.artist).toLowerCase()
+          );
+          const user2Track = user2RawTracks.find(ut => 
+            ut.name.toLowerCase() === t.name.toLowerCase() && 
+            (typeof ut.artist === 'object' ? ut.artist?.name : ut.artist).toLowerCase() === 
+            (typeof t.artist === 'object' ? t.artist?.name : t.artist).toLowerCase()
+          );
+          track.combinedPlays = (parseInt(user1Track?.playcount) || 0) + (parseInt(user2Track?.playcount) || 0);
+        }
+        return track;
+      })
+      .filter(t => t !== null);
 
     // Create a balanced blend (inspired by Spotify)
     const blendedTracks = [];
@@ -184,8 +209,8 @@ async function generatePlaylist(user1, user2) {
       return b.playcount - a.playcount;
     });
 
-    // Limit to maxTracks
-    const finalPlaylist = uniqueTracks.slice(0, maxTracks);
+    // Limit to playlist length (0 means no limit)
+    const finalPlaylist = maxTracks > 0 ? uniqueTracks.slice(0, maxTracks) : uniqueTracks;
     displayPlaylist(finalPlaylist);
     showLoading(false);
   } catch (error) {
@@ -202,15 +227,17 @@ async function generatePlaylist(user1, user2) {
 
 // Display playlist in UI
 function displayPlaylist(tracks) {
-  playlistDiv.innerHTML = tracks.map(track => `
+  playlistDiv.innerHTML = tracks.filter(track => track !== null).map(track => `
     <div class="track-item p-3 mb-2 rounded-lg fade-in ${track.common ? 'common-track' : 'bg-gray-50'}">
       <div class="flex items-center">
         ${track.common ? '<span class="text-yellow-500 mr-2"><i class="fas fa-star"></i></span>' : ''}
         <div class="flex-grow">
           <span class="font-semibold text-gray-800">${track.name}</span>
           <span class="text-gray-600"> - ${track.artist}</span>
+          ${track.user1 ? `<span class="text-sm text-blue-500 ml-2">${document.getElementById('user1').value.trim()}</span>` : ''}
+          ${track.user2 ? `<span class="text-sm text-green-500 ml-2">${document.getElementById('user2').value.trim()}</span>` : ''}
         </div>
-        <span class="text-sm text-gray-500">${track.playcount} plays</span>
+        <span class="text-sm text-gray-500">${track.combinedPlays || track.playcount} plays</span>
       </div>
     </div>
   `).join('');
@@ -305,11 +332,11 @@ async function getAdvancedBlend(user1, user2) {
 
   // Process and mark common tracks
   const blendedTracks = [
-    ...commonWeek.map(t => processTrackData(t, true)),
-    ...commonMonth.map(t => processTrackData(t, true)),
-    ...commonYear.map(t => processTrackData(t, true)),
-    ...commonSuggested.map(t => processTrackData(t, true))
-  ];
+    ...commonWeek.map(t => processTrackData(t, true, true, true)),
+    ...commonMonth.map(t => processTrackData(t, true, true, true)),
+    ...commonYear.map(t => processTrackData(t, true, true, true)),
+    ...commonSuggested.map(t => processTrackData(t, true, true, true))
+  ].filter(t => t !== null);
 
   // Get all-time tracks for filling remaining slots
   const [user1AllTime, user2AllTime] = await Promise.all([
@@ -318,8 +345,12 @@ async function getAdvancedBlend(user1, user2) {
   ]);
 
   // Add all-time tracks using normal blending logic
-  const user1Tracks = user1AllTime.toptracks.track.map(t => processTrackData(t));
-  const user2Tracks = user2AllTime.toptracks.track.map(t => processTrackData(t));
+  const user1Tracks = user1AllTime.toptracks.track
+    .map(t => processTrackData(t, false, true, false))
+    .filter(t => t !== null);
+  const user2Tracks = user2AllTime.toptracks.track
+    .map(t => processTrackData(t, false, false, true))
+    .filter(t => t !== null);
   
   // Get playlist length from UI
   const playlistLength = parseInt(document.getElementById('playlistLength').value) || 50;
