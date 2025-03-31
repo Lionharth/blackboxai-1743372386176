@@ -99,12 +99,11 @@ async function generatePlaylist(user1, user2) {
     let user1Top, user2Top;
     
     if (document.getElementById('advancedMode').checked) {
-      [user1Top, user2Top, user1Suggested, user2Suggested] = await Promise.all([
-        getWeightedTracks(user1),
-        getWeightedTracks(user2),
-        getSuggestedTracks(user1),
-        getSuggestedTracks(user2)
-      ]);
+      const playlistLength = parseInt(document.getElementById('playlistLength').value) || 50;
+      const blendedTracks = await getAdvancedBlend(user1, user2, playlistLength);
+      displayPlaylist(blendedTracks);
+      showLoading(false);
+      return;
     } else {
       [user1Top, user2Top, user1Suggested, user2Suggested] = await Promise.all([
         getTopTracks(user1),
@@ -281,30 +280,70 @@ document.getElementById('advancedMode').addEventListener('change', function() {
 });
 
 // Advanced mode track processing
-async function getWeightedTracks(username) {
-  const weightInputs = document.querySelectorAll('#advancedOptions input[type="number"]');
-  const weights = {
-    overall: parseInt(weightInputs[0]?.value) || 1,
-    year: parseInt(weightInputs[1]?.value) || 2,
-    month: parseInt(weightInputs[2]?.value) || 3,
-    week: parseInt(weightInputs[3]?.value) || 4
-  };
-
-  const [overall, year, month, week] = await Promise.all([
-    getTopTracksForPeriod(username, 'overall'),
-    getTopTracksForPeriod(username, '12month'),
-    getTopTracksForPeriod(username, '1month'),
-    getTopTracksForPeriod(username, '7day')
+async function getAdvancedBlend(user1, user2) {
+  // Get tracks from different time periods
+  const [user1Week, user2Week, user1Month, user2Month, 
+         user1Year, user2Year, user1Suggested, user2Suggested] = await Promise.all([
+    getTopTracksForPeriod(user1, '7day', 50),
+    getTopTracksForPeriod(user2, '7day', 50),
+    getTopTracksForPeriod(user1, '1month', 100),
+    getTopTracksForPeriod(user2, '1month', 100),
+    getTopTracksForPeriod(user1, '12month', 200),
+    getTopTracksForPeriod(user2, '12month', 200),
+    getSuggestedTracks(user1),
+    getSuggestedTracks(user2)
   ]);
 
-  // Combine and weight tracks
-  const weightedTracks = [];
-  overall.toptracks.track.forEach(t => weightedTracks.push({...processTrackData(t), weight: weights.overall}));
-  year.toptracks.track.forEach(t => weightedTracks.push({...processTrackData(t), weight: weights.year}));
-  month.toptracks.track.forEach(t => weightedTracks.push({...processTrackData(t), weight: weights.month}));
-  week.toptracks.track.forEach(t => weightedTracks.push({...processTrackData(t), weight: weights.week}));
+  // Find common tracks in each period
+  const commonWeek = findCommonTracks(user1Week.toptracks.track, user2Week.toptracks.track);
+  const commonMonth = findCommonTracks(user1Month.toptracks.track, user2Month.toptracks.track);
+  const commonYear = findCommonTracks(user1Year.toptracks.track, user2Year.toptracks.track);
+  const commonSuggested = findCommonTracks(
+    user1Suggested.weeklytrackchart.track, 
+    user2Suggested.weeklytrackchart.track
+  );
 
-  return weightedTracks;
+  // Process and mark common tracks
+  const blendedTracks = [
+    ...commonWeek.map(t => processTrackData(t, true)),
+    ...commonMonth.map(t => processTrackData(t, true)),
+    ...commonYear.map(t => processTrackData(t, true)),
+    ...commonSuggested.map(t => processTrackData(t, true))
+  ];
+
+  // Get all-time tracks for filling remaining slots
+  const [user1AllTime, user2AllTime] = await Promise.all([
+    getTopTracksForPeriod(user1, 'overall'),
+    getTopTracksForPeriod(user2, 'overall')
+  ]);
+
+  // Add all-time tracks using normal blending logic
+  const user1Tracks = user1AllTime.toptracks.track.map(t => processTrackData(t));
+  const user2Tracks = user2AllTime.toptracks.track.map(t => processTrackData(t));
+  
+  // Get playlist length from UI
+  const playlistLength = parseInt(document.getElementById('playlistLength').value) || 50;
+  
+  // Alternate between users' top all-time tracks
+  const maxAllTimeTracks = Math.max(0, playlistLength - blendedTracks.length);
+  for (let i = 0; i < maxAllTimeTracks; i++) {
+    if (i < user1Tracks.length) blendedTracks.push(user1Tracks[i]);
+    if (i < user2Tracks.length) blendedTracks.push(user2Tracks[i]);
+  }
+
+  // Remove duplicates while preserving order
+  const uniqueTracks = [];
+  const trackSet = new Set();
+  
+  blendedTracks.forEach(track => {
+    const key = `${track.nameLower}-${track.artistLower}`;
+    if (!trackSet.has(key)) {
+      trackSet.add(key);
+      uniqueTracks.push(track);
+    }
+  });
+
+  return uniqueTracks;
 }
 
 async function getTopTracksForPeriod(username, period) {
